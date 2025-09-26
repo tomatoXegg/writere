@@ -152,12 +152,6 @@ def rewrite_with_gemini(markdown_text: str, api_key: str, custom_prompt: str = N
         
         st.info(model_info)
         
-        # 如果文本太长，进行分段处理
-        max_length = 8000  # 减少单次处理的文本长度
-        if len(markdown_text) > max_length:
-            st.warning("⚠️ 文章较长，正在分段处理...")
-            return _process_long_text(model, markdown_text, max_length, custom_prompt)
-        
         # 使用自定义prompt或默认prompt
         if custom_prompt:
             prompt = f"""
@@ -208,76 +202,6 @@ def rewrite_with_gemini(markdown_text: str, api_key: str, custom_prompt: str = N
         raise Exception(f"Gemini API调用失败: {str(e)}")
 
 
-def _process_long_text(model, text: str, max_length: int, custom_prompt: str = None) -> str:
-    """处理长文本的分段改写"""
-    # 简单的按段落分割
-    paragraphs = text.split('\n\n')
-    result_parts = []
-    current_part = ""
-    
-    for paragraph in paragraphs:
-        if len(current_part + paragraph) < max_length:
-            current_part += paragraph + '\n\n'
-        else:
-            if current_part:
-                # 处理当前部分
-                processed_part = _process_with_retry(model, current_part, custom_prompt)
-                result_parts.append(processed_part)
-            current_part = paragraph + '\n\n'
-    
-    # 处理最后的部分
-    if current_part:
-        processed_part = _process_with_retry(model, current_part, custom_prompt)
-        result_parts.append(processed_part)
-    
-    return '\n\n'.join(result_parts)
-
-
-def _process_with_retry(model, text: str, custom_prompt: str = None) -> str:
-    """带重试机制的文本处理"""
-    # 使用自定义prompt或默认prompt
-    if custom_prompt:
-        prompt = f"""
-{custom_prompt}
-
-原文如下：
----
-{text}
----
-
-请直接返回改写后的Markdown内容，不要添加额外说明。
-"""
-    else:
-        prompt = f"""
-请将以下Markdown格式的文章内容进行改写，使其表达方式更简洁、流畅。
-
-重要规则：
-1. 必须保持原文的Markdown格式不变，包括标题、列表、代码块等。
-2. 必须完整保留原文中所有的图片链接（![]()）。
-3. 不要添加任何与原文无关的评论或内容。
-4. 保持原文的核心观点和信息不变。
-5. 优化句式结构，使表达更加清晰流畅。
-
-原文如下：
----
-{text}
----
-
-请直接返回改写后的Markdown内容，不要添加额外说明。
-"""
-    
-    max_retries = 2
-    for attempt in range(max_retries):
-        try:
-            response = model.generate_content(prompt)
-            if response.text:
-                return response.text.strip()
-            else:
-                raise Exception("Gemini API返回空内容")
-        except Exception as retry_error:
-            if attempt == max_retries - 1:
-                raise Exception(f"处理失败: {str(retry_error)}")
-            continue
 
 
 def main():
