@@ -294,8 +294,8 @@ def main():
     api_keys_exist = all([
         hasattr(st.session_state, 'firecrawl_key'),
         hasattr(st.session_state, 'gemini_key'),
-        st.session_state.firecrawl_key,
-        st.session_state.gemini_key
+        getattr(st.session_state, 'firecrawl_key', None),
+        getattr(st.session_state, 'gemini_key', None)
     ])
     
     if api_keys_exist and not st.session_state.api_configured:
@@ -383,12 +383,16 @@ def main():
     # 显示当前配置状态和重置选项
     col_status, col_reset = st.columns([4, 1])
     with col_status:
-        st.info(f"✅ API已配置 - Firecrawl: {'●' * len(st.session_state.firecrawl_key[:8])}..., Gemini: {'●' * len(st.session_state.gemini_key[:8])}...")
+        firecrawl_display = getattr(st.session_state, 'firecrawl_key', '')[:8]
+        gemini_display = getattr(st.session_state, 'gemini_key', '')[:8]
+        st.info(f"✅ API已配置 - Firecrawl: {'●' * len(firecrawl_display)}..., Gemini: {'●' * len(gemini_display)}...")
     with col_reset:
         if st.button("🔄 重置配置", help="清除所有API配置"):
             st.session_state.api_configured = False
-            del st.session_state.firecrawl_key
-            del st.session_state.gemini_key
+            if hasattr(st.session_state, 'firecrawl_key'):
+                del st.session_state.firecrawl_key
+            if hasattr(st.session_state, 'gemini_key'):
+                del st.session_state.gemini_key
             if hasattr(st.session_state, 'cloudinary_name'):
                 del st.session_state.cloudinary_name
             if hasattr(st.session_state, 'cloudinary_key'):
