@@ -104,7 +104,7 @@ def process_images_with_cloudinary(markdown_text: str, cloud_name: str, api_key:
     return processed_text
 
 
-def rewrite_with_gemini(markdown_text: str, api_key: str) -> str:
+def rewrite_with_gemini(markdown_text: str, api_key: str, custom_prompt: str = None) -> str:
     """
     接收Markdown文本，并调用Google Gemini API对其进行改写。
     
@@ -149,7 +149,20 @@ def rewrite_with_gemini(markdown_text: str, api_key: str) -> str:
             st.warning("⚠️ 文章较长，正在分段处理...")
             return _process_long_text(model, markdown_text, max_length)
         
-        prompt = f"""
+        # 使用自定义prompt或默认prompt
+        if custom_prompt:
+            prompt = f"""
+{custom_prompt}
+
+原文如下：
+---
+{markdown_text}
+---
+
+请直接返回改写后的Markdown内容，不要添加额外说明。
+"""
+        else:
+            prompt = f"""
 请将以下Markdown格式的文章内容进行改写，使其表达方式更简洁、流畅。
 
 重要规则：
@@ -186,7 +199,7 @@ def rewrite_with_gemini(markdown_text: str, api_key: str) -> str:
         raise Exception(f"Gemini API调用失败: {str(e)}")
 
 
-def _process_long_text(model, text: str, max_length: int) -> str:
+def _process_long_text(model, text: str, max_length: int, custom_prompt: str = None) -> str:
     """处理长文本的分段改写"""
     # 简单的按段落分割
     paragraphs = text.split('\n\n')
@@ -199,21 +212,34 @@ def _process_long_text(model, text: str, max_length: int) -> str:
         else:
             if current_part:
                 # 处理当前部分
-                processed_part = _process_with_retry(model, current_part)
+                processed_part = _process_with_retry(model, current_part, custom_prompt)
                 result_parts.append(processed_part)
             current_part = paragraph + '\n\n'
     
     # 处理最后的部分
     if current_part:
-        processed_part = _process_with_retry(model, current_part)
+        processed_part = _process_with_retry(model, current_part, custom_prompt)
         result_parts.append(processed_part)
     
     return '\n\n'.join(result_parts)
 
 
-def _process_with_retry(model, text: str) -> str:
+def _process_with_retry(model, text: str, custom_prompt: str = None) -> str:
     """带重试机制的文本处理"""
-    prompt = f"""
+    # 使用自定义prompt或默认prompt
+    if custom_prompt:
+        prompt = f"""
+{custom_prompt}
+
+原文如下：
+---
+{text}
+---
+
+请直接返回改写后的Markdown内容，不要添加额外说明。
+"""
+    else:
+        prompt = f"""
 请将以下Markdown格式的文章内容进行改写，使其表达方式更简洁、流畅。
 
 重要规则：
@@ -375,6 +401,63 @@ def main():
     with col2:
         process_button = st.button("🚀 开始处理", key="process_button", use_container_width=True)
     
+    # 自定义改写Prompt输入
+    with st.expander("✏️ 自定义改写指令（可选）", expanded=False):
+        st.markdown("### 📝 自定义AI改写指令")
+        st.info("💡 如不填写，将使用默认的简洁流畅改写指令")
+        
+        default_prompt = """请将以下Markdown格式的文章内容进行改写，使其表达方式更简洁、流畅。
+
+重要规则：
+1. 必须保持原文的Markdown格式不变，包括标题、列表、代码块等。
+2. 必须完整保留原文中所有的图片链接（![]()）。
+3. 不要添加任何与原文无关的评论或内容。
+4. 保持原文的核心观点和信息不变。
+5. 优化句式结构，使表达更加清晰流畅。"""
+        
+        custom_prompt = st.text_area(
+            "🎯 请输入您的改写指令：",
+            value=default_prompt,
+            height=150,
+            help="您可以自定义AI如何改写文章，比如改变风格、调整语气等"
+        )
+        
+        # 预设模板选择
+        st.markdown("#### 📋 快速模板")
+        template_cols = st.columns(3)
+        
+        with template_cols[0]:
+            if st.button("📰 新闻风格", help="改为新闻报道风格"):
+                custom_prompt = """请将以下文章改写为新闻报道风格：
+
+要求：
+1. 使用客观、中性的语言
+2. 保持Markdown格式和图片链接
+3. 突出事实和关键信息
+4. 语言简洁有力"""
+        
+        with template_cols[1]:
+            if st.button("💬 口语化", help="改为口语化表达"):
+                custom_prompt = """请将以下文章改写为更口语化的表达：
+
+要求：
+1. 使用轻松、自然的语言
+2. 保持Markdown格式和图片链接
+3. 增加亲和力和可读性
+4. 像和朋友聊天一样"""
+        
+        with template_cols[2]:
+            if st.button("📚 专业学术", help="改为专业学术风格"):
+                custom_prompt = """请将以下文章改写为专业学术风格：
+
+要求：
+1. 使用严谨、专业的语言
+2. 保持Markdown格式和图片链接
+3. 增加逻辑性和深度分析
+4. 适合专业读者阅读"""
+        
+        st.session_state.custom_prompt = custom_prompt
+    
     st.markdown("---")
     
     # 处理逻辑
@@ -405,7 +488,9 @@ def main():
                 # 步骤3: AI改写
                 with st.expander("🤖 步骤3: AI智能改写", expanded=False):
                     st.write("正在使用AI进行内容改写...")
-                    final_content = rewrite_with_gemini(content_with_images, st.session_state.gemini_key)
+                    # 获取自定义prompt
+                    custom_prompt = getattr(st.session_state, 'custom_prompt', None)
+                    final_content = rewrite_with_gemini(content_with_images, st.session_state.gemini_key, custom_prompt)
                     st.success("✅ 内容改写完成")
                 
                 # 保存到历史记录
@@ -427,12 +512,48 @@ def main():
                 
                 # 显示源码
                 st.subheader("💻 Markdown源码（可复制）")
-                st.code(final_content, language="markdown", line_numbers=False)
                 
-                # 复制按钮
-                if st.button("📋 复制Markdown源码", key="copy_button"):
-                    st.toast("✅ 源码已复制到剪贴板", icon="✅")
-                    st.session_state.clipboard_content = final_content
+                # 使用两个列：一个显示代码，一个放复制按钮
+                col_code, col_copy = st.columns([4, 1])
+                
+                with col_code:
+                    st.code(final_content, language="markdown", line_numbers=True, height=400)
+                
+                with col_copy:
+                    st.markdown("### 📋 复制操作")
+                    
+                    # 方式1：直接复制按钮
+                    if st.button("📋 复制源码", key="copy_button", use_container_width=True):
+                        st.session_state.clipboard_content = final_content
+                        st.toast("✅ Markdown源码已复制到剪贴板！", icon="✅")
+                    
+                    st.markdown("---")
+                    
+                    # 方式2：提供文本框供手动复制
+                    st.markdown("### 🔤 手动复制")
+                    st.text_area(
+                        "完整Markdown源码",
+                        value=final_content,
+                        height=200,
+                        help="您可以手动选择复制这些内容"
+                    )
+                    
+                    # 方式3：下载功能
+                    st.markdown("---")
+                    st.markdown("### 💾 下载文件")
+                    
+                    # 生成带时间戳的文件名
+                    import time
+                    filename = f"rewritten_article_{int(time.time())}.md"
+                    
+                    # 创建下载按钮
+                    st.download_button(
+                        label="📥 下载Markdown文件",
+                        data=final_content,
+                        file_name=filename,
+                        mime="text/markdown",
+                        use_container_width=True
+                    )
                     
         except ValueError as e:
             st.error(f"❌ 配置错误: {str(e)}")
