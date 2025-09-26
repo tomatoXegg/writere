@@ -124,8 +124,8 @@ def rewrite_with_gemini(markdown_text: str, api_key: str, custom_prompt: str = N
     try:
         genai.configure(api_key=api_key)
         
-        # 尝试使用可用的模型
-        available_models = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
+        # 尝试使用可用的模型 - 优先使用Gemini 2.5 Pro
+        available_models = ['gemini-2.5-pro', 'gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
         model = None
         
         for model_name in available_models:
@@ -134,20 +134,31 @@ def rewrite_with_gemini(markdown_text: str, api_key: str, custom_prompt: str = N
                 # 测试模型是否可用
                 test_response = model.generate_content("测试")
                 if test_response.text:
+                    st.success(f"✅ 成功连接到模型: {model.model_name}")
                     break
-            except:
+            except Exception as model_error:
+                st.warning(f"⚠️ 模型 {model_name} 不可用: {str(model_error)}")
                 continue
         
         if not model:
             raise Exception("无法找到可用的Gemini模型")
         
-        st.info(f"✅ 使用模型: {model.model_name}")
+        # 显示最终使用的模型信息
+        model_info = f"🤖 **当前使用模型**: {model.model_name}"
+        if "2.5-pro" in model.model_name:
+            model_info += " ⭐ (最新最强版本)"
+        elif "2.0-flash-exp" in model.model_name:
+            model_info += " 🚀 (实验性高速版本)"
+        elif "1.5-pro" in model.model_name:
+            model_info += " 🔧 (稳定专业版本)"
+        
+        st.info(model_info)
         
         # 如果文本太长，进行分段处理
         max_length = 8000  # 减少单次处理的文本长度
         if len(markdown_text) > max_length:
             st.warning("⚠️ 文章较长，正在分段处理...")
-            return _process_long_text(model, markdown_text, max_length)
+            return _process_long_text(model, markdown_text, max_length, custom_prompt)
         
         # 使用自定义prompt或默认prompt
         if custom_prompt:
@@ -487,11 +498,23 @@ def main():
                 
                 # 步骤3: AI改写
                 with st.expander("🤖 步骤3: AI智能改写", expanded=False):
-                    st.write("正在使用AI进行内容改写...")
+                    st.write("🔄 正在使用AI进行内容改写...")
+                    st.info("💡 根据您的自定义指令进行智能改写")
+                    
                     # 获取自定义prompt
                     custom_prompt = getattr(st.session_state, 'custom_prompt', None)
+                    if custom_prompt:
+                        st.write("📝 使用自定义改写指令")
+                        with st.expander("查看当前改写指令", expanded=False):
+                            st.code(custom_prompt, language="text")
+                    
                     final_content = rewrite_with_gemini(content_with_images, st.session_state.gemini_key, custom_prompt)
-                    st.success("✅ 内容改写完成")
+                    st.success("✅ 内容改写完成！")
+                    
+                    # 显示改写统计信息
+                    original_length = len(content_with_images)
+                    rewritten_length = len(final_content)
+                    st.info(f"📊 **改写统计**: 原文 {original_length} 字符 → 改写后 {rewritten_length} 字符")
                 
                 # 保存到历史记录
                 history_item = {
@@ -506,8 +529,22 @@ def main():
                 st.markdown("## 🎉 处理完成！")
                 st.success("✅ 文章处理成功！")
                 
+                # 显示处理摘要
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("📄 原文字数", f"{len(original_content)}")
+                with col2:
+                    st.metric("✨ 改写字数", f"{len(final_content)}")
+                with col3:
+                    change_percent = ((len(final_content) - len(original_content)) / len(original_content)) * 100
+                    change_emoji = "📈" if change_percent > 0 else "📉" if change_percent < 0 else "➡️"
+                    st.metric(f"{change_emoji} 长度变化", f"{change_percent:.1f}%")
+                
+                st.markdown("---")
+                
                 # 显示改写后的内容
-                st.subheader("📖 改写后的内容（预览）")
+                st.subheader("📖 **改写后的内容**（AI根据您的指令生成）")
+                st.markdown("---")
                 st.markdown(final_content)
                 
                 # 显示源码
