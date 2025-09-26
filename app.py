@@ -125,7 +125,7 @@ def rewrite_with_gemini(markdown_text: str, api_key: str) -> str:
         genai.configure(api_key=api_key)
         
         # 尝试使用可用的模型
-        available_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+        available_models = ['gemini-2.5-pro', 'gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
         model = None
         
         for model_name in available_models:
