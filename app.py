@@ -8,12 +8,13 @@ import os
 from datetime import datetime
 
 
-def get_content_from_firecrawl(url: str) -> str:
+def get_content_from_firecrawl(url: str, api_key: str) -> str:
     """
     接收一个URL，调用Firecrawl的scrape API，并返回干净的Markdown文本。
     
     Args:
         url: 必须是一个非空的、格式合法的URL字符串
+        api_key: Firecrawl API密钥
         
     Returns:
         成功时返回从Firecrawl API获取到的Markdown文本
@@ -22,7 +23,6 @@ def get_content_from_firecrawl(url: str) -> str:
         requests.exceptions.RequestException: 如果网络请求失败
         ValueError: 如果API返回的数据格式不正确或包含错误信息
     """
-    api_key = st.secrets.get("FIRECRAWL_API_KEY", os.getenv("FIRECRAWL_API_KEY"))
     if not api_key:
         raise ValueError("Firecrawl API Key未配置")
     
@@ -51,12 +51,15 @@ def get_content_from_firecrawl(url: str) -> str:
         raise requests.exceptions.RequestException(f"网络请求失败: {str(e)}")
 
 
-def process_images_with_cloudinary(markdown_text: str) -> str:
+def process_images_with_cloudinary(markdown_text: str, cloud_name: str, api_key: str, api_secret: str) -> str:
     """
     接收Markdown文本，查找所有图片链接，将图片上传到Cloudinary，并用新链接替换旧链接。
     
     Args:
         markdown_text: 任意字符串，可能包含Markdown图片语法![]()
+        cloud_name: Cloudinary云名称
+        api_key: Cloudinary API密钥
+        api_secret: Cloudinary API密钥
         
     Returns:
         返回处理后的Markdown文本。如果原文中没有图片，则原样返回
@@ -66,12 +69,12 @@ def process_images_with_cloudinary(markdown_text: str) -> str:
     """
     # 配置Cloudinary
     cloudinary.config(
-        cloud_name=st.secrets.get("CLOUDINARY_CLOUD_NAME", os.getenv("CLOUDINARY_CLOUD_NAME")),
-        api_key=st.secrets.get("CLOUDINARY_API_KEY", os.getenv("CLOUDINARY_API_KEY")),
-        api_secret=st.secrets.get("CLOUDINARY_API_SECRET", os.getenv("CLOUDINARY_API_SECRET"))
+        cloud_name=cloud_name,
+        api_key=api_key,
+        api_secret=api_secret
     )
     
-    if not all([cloudinary.config().cloud_name, cloudinary.config().api_key, cloudinary.config().api_secret]):
+    if not all([cloud_name, api_key, api_secret]):
         raise ValueError("Cloudinary配置未完成")
     
     # 查找所有Markdown图片链接
@@ -101,12 +104,13 @@ def process_images_with_cloudinary(markdown_text: str) -> str:
     return processed_text
 
 
-def rewrite_with_gemini(markdown_text: str) -> str:
+def rewrite_with_gemini(markdown_text: str, api_key: str) -> str:
     """
     接收Markdown文本，并调用Google Gemini API对其进行改写。
     
     Args:
         markdown_text: 待改写的文本内容
+        api_key: Gemini API密钥
         
     Returns:
         成功时返回由Gemini API生成的改写后的文本
@@ -114,7 +118,6 @@ def rewrite_with_gemini(markdown_text: str) -> str:
     Raises:
         Exception: 如果Gemini API调用失败或返回了不符合预期的内容
     """
-    api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
     if not api_key:
         raise ValueError("Gemini API Key未配置")
     
@@ -158,6 +161,89 @@ def main():
     # 初始化会话状态
     if "history" not in st.session_state:
         st.session_state.history = []
+    if "api_configured" not in st.session_state:
+        st.session_state.api_configured = False
+    
+    # API配置界面
+    with st.expander("🔑 API密钥配置", expanded=not st.session_state.api_configured):
+        st.markdown("### 🔑 API密钥配置")
+        st.warning("⚠️ 您的API密钥仅保存在浏览器本地，不会上传到服务器")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            firecrawl_key = st.text_input(
+                "🔥 Firecrawl API Key",
+                type="password",
+                placeholder="fc-xxxxxxxxxxxxxxxxxxxxxxxx",
+                help="用于获取公众号文章内容"
+            )
+            gemini_key = st.text_input(
+                "🤖 Gemini API Key", 
+                type="password",
+                placeholder="AIzaSyxxxxxxxxxxxxxxxxxxxxxxxx",
+                help="用于AI内容改写"
+            )
+        
+        with col2:
+            cloudinary_name = st.text_input(
+                "☁️ Cloudinary Cloud Name",
+                type="password",
+                placeholder="your-cloud-name",
+                help="用于图片上传和存储"
+            )
+            cloudinary_key = st.text_input(
+                "☁️ Cloudinary API Key",
+                type="password", 
+                placeholder="xxxxxxxxxxxxxxxxxxxxxxxx",
+                help="Cloudinary API密钥"
+            )
+            cloudinary_secret = st.text_input(
+                "☁️ Cloudinary API Secret",
+                type="password",
+                placeholder="xxxxxxxxxxxxxxxxxxxxxxxx",
+                help="Cloudinary API密钥"
+            )
+        
+        # 保存配置按钮
+        if st.button("💾 保存API配置", type="primary"):
+            if firecrawl_key and gemini_key:
+                st.session_state.firecrawl_key = firecrawl_key
+                st.session_state.gemini_key = gemini_key
+                st.session_state.cloudinary_name = cloudinary_name
+                st.session_state.cloudinary_key = cloudinary_key
+                st.session_state.cloudinary_secret = cloudinary_secret
+                st.session_state.api_configured = True
+                st.success("✅ API配置保存成功！")
+                st.rerun()
+            else:
+                st.error("❌ 至少需要配置Firecrawl和Gemini API密钥")
+    
+    # 如果API未配置，显示提示
+    if not st.session_state.api_configured:
+        st.error("❌ 请先配置API密钥才能使用应用功能")
+        return
+    
+    st.markdown("---")
+    
+    # 显示当前配置状态和重置选项
+    col_status, col_reset = st.columns([4, 1])
+    with col_status:
+        st.info(f"✅ API已配置 - Firecrawl: {'●' * len(st.session_state.firecrawl_key[:8])}..., Gemini: {'●' * len(st.session_state.gemini_key[:8])}...")
+    with col_reset:
+        if st.button("🔄 重置配置", help="清除所有API配置"):
+            st.session_state.api_configured = False
+            del st.session_state.firecrawl_key
+            del st.session_state.gemini_key
+            if hasattr(st.session_state, 'cloudinary_name'):
+                del st.session_state.cloudinary_name
+            if hasattr(st.session_state, 'cloudinary_key'):
+                del st.session_state.cloudinary_key
+            if hasattr(st.session_state, 'cloudinary_secret'):
+                del st.session_state.cloudinary_secret
+            st.rerun()
+    
+    st.markdown("---")
     
     # 用户输入界面
     col1, col2 = st.columns([3, 1])
@@ -183,19 +269,24 @@ def main():
                 # 步骤1: 获取文章内容
                 with st.expander("📄 步骤1: 获取文章内容", expanded=False):
                     st.write("正在从Firecrawl获取文章内容...")
-                    original_content = get_content_from_firecrawl(url.strip())
+                    original_content = get_content_from_firecrawl(url.strip(), st.session_state.firecrawl_key)
                     st.success("✅ 文章内容获取成功")
                 
                 # 步骤2: 处理图片
                 with st.expander("🖼️ 步骤2: 处理图片链接", expanded=False):
                     st.write("正在处理文章中的图片...")
-                    content_with_images = process_images_with_cloudinary(original_content)
+                    content_with_images = process_images_with_cloudinary(
+                        original_content,
+                        st.session_state.cloudinary_name,
+                        st.session_state.cloudinary_key,
+                        st.session_state.cloudinary_secret
+                    )
                     st.success("✅ 图片处理完成")
                 
                 # 步骤3: AI改写
                 with st.expander("🤖 步骤3: AI智能改写", expanded=False):
                     st.write("正在使用AI进行内容改写...")
-                    final_content = rewrite_with_gemini(content_with_images)
+                    final_content = rewrite_with_gemini(content_with_images, st.session_state.gemini_key)
                     st.success("✅ 内容改写完成")
                 
                 # 保存到历史记录
