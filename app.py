@@ -525,41 +525,41 @@ def main():
         try:
             with st.spinner("🔄 正在处理中，请稍候..."):
                 # 步骤1: 获取文章内容
-                with st.expander("📄 步骤1: 获取文章内容", expanded=False):
-                    st.write("正在从Firecrawl获取文章内容...")
-                    original_content = get_content_from_firecrawl(url.strip(), st.session_state.firecrawl_key)
-                    st.success("✅ 文章内容获取成功")
+                st.markdown("### 📄 步骤1: 获取文章内容")
+                st.write("正在从Firecrawl获取文章内容...")
+                original_content = get_content_from_firecrawl(url.strip(), st.session_state.firecrawl_key)
+                st.success("✅ 文章内容获取成功")
                 
                 # 步骤2: 处理图片
-                with st.expander("🖼️ 步骤2: 处理图片链接", expanded=False):
-                    st.write("正在处理文章中的图片...")
-                    content_with_images = process_images_with_cloudinary(
-                        original_content,
-                        st.session_state.cloudinary_name,
-                        st.session_state.cloudinary_key,
-                        st.session_state.cloudinary_secret
-                    )
-                    st.success("✅ 图片处理完成")
+                st.markdown("### 🖼️ 步骤2: 处理图片链接")
+                st.write("正在处理文章中的图片...")
+                content_with_images = process_images_with_cloudinary(
+                    original_content,
+                    st.session_state.cloudinary_name,
+                    st.session_state.cloudinary_key,
+                    st.session_state.cloudinary_secret
+                )
+                st.success("✅ 图片处理完成")
                 
                 # 步骤3: AI改写
-                with st.expander("🤖 步骤3: AI智能改写", expanded=False):
-                    st.write("🔄 正在使用AI进行内容改写...")
-                    st.info("💡 根据您的自定义指令进行智能改写")
-                    
-                    # 获取自定义prompt
-                    custom_prompt = getattr(st.session_state, 'custom_prompt', None)
-                    if custom_prompt:
-                        st.write("📝 使用自定义改写指令")
-                        with st.expander("查看当前改写指令", expanded=False):
-                            st.code(custom_prompt, language="text")
-                    
-                    final_content = rewrite_with_gemini(content_with_images, st.session_state.gemini_key, custom_prompt)
-                    st.success("✅ 内容改写完成！")
-                    
-                    # 显示改写统计信息
-                    original_length = len(content_with_images)
-                    rewritten_length = len(final_content)
-                    st.info(f"📊 **改写统计**: 原文 {original_length} 字符 → 改写后 {rewritten_length} 字符")
+                st.markdown("### 🤖 步骤3: AI智能改写")
+                st.write("🔄 正在使用AI进行内容改写...")
+                st.info("💡 根据您的自定义指令进行智能改写")
+                
+                # 获取自定义prompt
+                custom_prompt = getattr(st.session_state, 'custom_prompt', None)
+                if custom_prompt:
+                    st.write("📝 使用自定义改写指令")
+                    with st.expander("查看当前改写指令", expanded=False):
+                        st.code(custom_prompt, language="text")
+                
+                final_content = rewrite_with_gemini(content_with_images, st.session_state.gemini_key, custom_prompt)
+                st.success("✅ 内容改写完成！")
+                
+                # 显示改写统计信息
+                original_length = len(content_with_images)
+                rewritten_length = len(final_content)
+                st.info(f"📊 **改写统计**: 原文 {original_length} 字符 → 改写后 {rewritten_length} 字符")
                 
                 # 保存到历史记录
                 history_item = {
