@@ -125,7 +125,7 @@ def rewrite_with_gemini(markdown_text: str, api_key: str, custom_prompt: str = N
         genai.configure(api_key=api_key)
         
         # 尝试使用可用的模型 - 优先使用Gemini 2.5 Pro
-        available_models = ['gemini-2.5-pro', 'gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
+        available_models = ['gemini-2.5-pro', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
         model = None
         
         for model_name in available_models:
@@ -147,10 +147,12 @@ def rewrite_with_gemini(markdown_text: str, api_key: str, custom_prompt: str = N
         model_info = f"🤖 **当前使用模型**: {model.model_name}"
         if "2.5-pro" in model.model_name:
             model_info += " ⭐ (最新最强版本)"
-        elif "2.0-flash-exp" in model.model_name:
-            model_info += " 🚀 (实验性高速版本)"
         elif "1.5-pro" in model.model_name:
             model_info += " 🔧 (稳定专业版本)"
+        elif "1.5-flash" in model.model_name:
+            model_info += " ⚡ (快速版本)"
+        elif "gemini-pro" in model.model_name:
+            model_info += " 📱 (经典版本)"
         
         st.info(model_info)
         
