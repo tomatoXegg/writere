@@ -291,12 +291,9 @@ def main():
         st.session_state.api_configured = False
     
     # 检查是否有保存的API密钥
-    api_keys_exist = all([
-        hasattr(st.session_state, 'firecrawl_key'),
-        hasattr(st.session_state, 'gemini_key'),
-        getattr(st.session_state, 'firecrawl_key', None),
-        getattr(st.session_state, 'gemini_key', None)
-    ])
+    firecrawl_key = getattr(st.session_state, 'firecrawl_key', '')
+    gemini_key = getattr(st.session_state, 'gemini_key', '')
+    api_keys_exist = bool(firecrawl_key.strip() and gemini_key.strip())
     
     if api_keys_exist and not st.session_state.api_configured:
         st.session_state.api_configured = True
@@ -360,17 +357,21 @@ def main():
             # 保存配置按钮
             submitted = st.form_submit_button("💾 保存API配置", type="primary")
             if submitted:
-                if firecrawl_key and gemini_key:
-                    st.session_state.firecrawl_key = firecrawl_key
-                    st.session_state.gemini_key = gemini_key
-                    st.session_state.cloudinary_name = cloudinary_name
-                    st.session_state.cloudinary_key = cloudinary_key
-                    st.session_state.cloudinary_secret = cloudinary_secret
+                # 验证必填字段
+                if not firecrawl_key.strip():
+                    st.error("❌ Firecrawl API Key不能为空")
+                elif not gemini_key.strip():
+                    st.error("❌ Gemini API Key不能为空")
+                else:
+                    # 保存到session state
+                    st.session_state.firecrawl_key = firecrawl_key.strip()
+                    st.session_state.gemini_key = gemini_key.strip()
+                    st.session_state.cloudinary_name = cloudinary_name.strip()
+                    st.session_state.cloudinary_key = cloudinary_key.strip()
+                    st.session_state.cloudinary_secret = cloudinary_secret.strip()
                     st.session_state.api_configured = True
                     st.success("✅ API配置保存成功！页面将刷新...")
                     st.rerun()
-                else:
-                    st.error("❌ 至少需要配置Firecrawl和Gemini API密钥")
     
     # 如果API未配置，显示提示
     if not st.session_state.api_configured:
