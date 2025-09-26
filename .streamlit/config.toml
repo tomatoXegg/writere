@@ -1,0 +1,16 @@
+[theme]
+primaryColor="#FF6B6B"
+backgroundColor="#F8F9FA"
+secondaryBackgroundColor="#E9ECEF"
+textColor="#212529"
+font="sans serif"
+
+[server]
+maxUploadSize = 200
+enableCORS = true
+port = 8501
+
+[browser]
+gatherUsageStats = false
+serverAddress = "localhost"
+serverPort = 8501
