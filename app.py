@@ -164,64 +164,92 @@ def main():
     if "api_configured" not in st.session_state:
         st.session_state.api_configured = False
     
+    # 检查是否有保存的API密钥
+    api_keys_exist = all([
+        hasattr(st.session_state, 'firecrawl_key'),
+        hasattr(st.session_state, 'gemini_key'),
+        st.session_state.firecrawl_key,
+        st.session_state.gemini_key
+    ])
+    
+    if api_keys_exist and not st.session_state.api_configured:
+        st.session_state.api_configured = True
+    
     # API配置界面
     with st.expander("🔑 API密钥配置", expanded=not st.session_state.api_configured):
         st.markdown("### 🔑 API密钥配置")
         st.warning("⚠️ 您的API密钥仅保存在浏览器本地，不会上传到服务器")
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            firecrawl_key = st.text_input(
-                "🔥 Firecrawl API Key",
-                type="password",
-                placeholder="fc-xxxxxxxxxxxxxxxxxxxxxxxx",
-                help="用于获取公众号文章内容"
-            )
-            gemini_key = st.text_input(
-                "🤖 Gemini API Key", 
-                type="password",
-                placeholder="AIzaSyxxxxxxxxxxxxxxxxxxxxxxxx",
-                help="用于AI内容改写"
-            )
-        
-        with col2:
-            cloudinary_name = st.text_input(
-                "☁️ Cloudinary Cloud Name",
-                type="password",
-                placeholder="your-cloud-name",
-                help="用于图片上传和存储"
-            )
-            cloudinary_key = st.text_input(
-                "☁️ Cloudinary API Key",
-                type="password", 
-                placeholder="xxxxxxxxxxxxxxxxxxxxxxxx",
-                help="Cloudinary API密钥"
-            )
-            cloudinary_secret = st.text_input(
-                "☁️ Cloudinary API Secret",
-                type="password",
-                placeholder="xxxxxxxxxxxxxxxxxxxxxxxx",
-                help="Cloudinary API密钥"
-            )
-        
-        # 保存配置按钮
-        if st.button("💾 保存API配置", type="primary"):
-            if firecrawl_key and gemini_key:
-                st.session_state.firecrawl_key = firecrawl_key
-                st.session_state.gemini_key = gemini_key
-                st.session_state.cloudinary_name = cloudinary_name
-                st.session_state.cloudinary_key = cloudinary_key
-                st.session_state.cloudinary_secret = cloudinary_secret
-                st.session_state.api_configured = True
-                st.success("✅ API配置保存成功！")
-                st.rerun()
-            else:
-                st.error("❌ 至少需要配置Firecrawl和Gemini API密钥")
+        # 使用表单来确保状态正确保存
+        with st.form("api_config_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # 从会话状态获取现有值，如果没有则为空
+                current_firecrawl = getattr(st.session_state, 'firecrawl_key', '')
+                current_gemini = getattr(st.session_state, 'gemini_key', '')
+                
+                firecrawl_key = st.text_input(
+                    "🔥 Firecrawl API Key",
+                    value=current_firecrawl,
+                    type="password",
+                    placeholder="fc-xxxxxxxxxxxxxxxxxxxxxxxx",
+                    help="用于获取公众号文章内容"
+                )
+                gemini_key = st.text_input(
+                    "🤖 Gemini API Key", 
+                    value=current_gemini,
+                    type="password",
+                    placeholder="AIzaSyxxxxxxxxxxxxxxxxxxxxxxxx",
+                    help="用于AI内容改写"
+                )
+            
+            with col2:
+                current_cloud_name = getattr(st.session_state, 'cloudinary_name', '')
+                current_cloud_key = getattr(st.session_state, 'cloudinary_key', '')
+                current_cloud_secret = getattr(st.session_state, 'cloudinary_secret', '')
+                
+                cloudinary_name = st.text_input(
+                    "☁️ Cloudinary Cloud Name",
+                    value=current_cloud_name,
+                    type="password",
+                    placeholder="your-cloud-name",
+                    help="用于图片上传和存储"
+                )
+                cloudinary_key = st.text_input(
+                    "☁️ Cloudinary API Key",
+                    value=current_cloud_key,
+                    type="password", 
+                    placeholder="xxxxxxxxxxxxxxxxxxxxxxxx",
+                    help="Cloudinary API密钥"
+                )
+                cloudinary_secret = st.text_input(
+                    "☁️ Cloudinary API Secret",
+                    value=current_cloud_secret,
+                    type="password",
+                    placeholder="xxxxxxxxxxxxxxxxxxxxxxxx",
+                    help="Cloudinary API密钥"
+                )
+            
+            # 保存配置按钮
+            submitted = st.form_submit_button("💾 保存API配置", type="primary")
+            if submitted:
+                if firecrawl_key and gemini_key:
+                    st.session_state.firecrawl_key = firecrawl_key
+                    st.session_state.gemini_key = gemini_key
+                    st.session_state.cloudinary_name = cloudinary_name
+                    st.session_state.cloudinary_key = cloudinary_key
+                    st.session_state.cloudinary_secret = cloudinary_secret
+                    st.session_state.api_configured = True
+                    st.success("✅ API配置保存成功！页面将刷新...")
+                    st.rerun()
+                else:
+                    st.error("❌ 至少需要配置Firecrawl和Gemini API密钥")
     
     # 如果API未配置，显示提示
     if not st.session_state.api_configured:
         st.error("❌ 请先配置API密钥才能使用应用功能")
+        st.info("💡 点击上方的'🔑 API密钥配置'展开配置面板")
         return
     
     st.markdown("---")
