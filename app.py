@@ -124,8 +124,8 @@ def rewrite_with_gemini(markdown_text: str, api_key: str, custom_prompt: str = N
     try:
         genai.configure(api_key=api_key)
         
-        # 尝试使用可用的模型 - 优先使用Gemini 2.5 Pro
-        available_models = ['gemini-2.5-pro', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
+        # 尝试使用可用的模型 - 只使用Gemini 2.5系列
+        available_models = ['gemini-2.5-pro', 'gemini-2.5-flash']
         model = None
         
         for model_name in available_models:
@@ -141,18 +141,14 @@ def rewrite_with_gemini(markdown_text: str, api_key: str, custom_prompt: str = N
                 continue
         
         if not model:
-            raise Exception("无法找到可用的Gemini模型")
+            raise Exception("无法找到可用的Gemini 2.5系列模型，请检查API密钥是否支持Gemini 2.5")
         
         # 显示最终使用的模型信息
         model_info = f"🤖 **当前使用模型**: {model.model_name}"
         if "2.5-pro" in model.model_name:
-            model_info += " ⭐ (最新最强版本)"
-        elif "1.5-pro" in model.model_name:
-            model_info += " 🔧 (稳定专业版本)"
-        elif "1.5-flash" in model.model_name:
-            model_info += " ⚡ (快速版本)"
-        elif "gemini-pro" in model.model_name:
-            model_info += " 📱 (经典版本)"
+            model_info += " ⭐ (最强性能版本)"
+        elif "2.5-flash" in model.model_name:
+            model_info += " ⚡ (高速响应版本)"
         
         st.info(model_info)
         
