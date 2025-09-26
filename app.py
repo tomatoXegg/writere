@@ -290,6 +290,27 @@ def main():
     if "api_configured" not in st.session_state:
         st.session_state.api_configured = False
     
+    # 设置默认API密钥（如果用户还没有配置）
+    default_api_keys = {
+        'firecrawl_key': 'fc-5d102eef37db442481ca5f2ff82471eb',
+        'gemini_key': 'AIzaSyDMHiBSRytM62PKxi1zSDE4D8CDIXEzEN0',
+        'cloudinary_name': 'dkwkwgzrj',
+        'cloudinary_key': '331941412943467',
+        'cloudinary_secret': 'nSFDG9toy1oBWhI6cpNPOYFNmDY'
+    }
+    
+    # 如果还没有配置，使用默认值
+    if not hasattr(st.session_state, 'firecrawl_key') or not st.session_state.firecrawl_key:
+        st.session_state.firecrawl_key = default_api_keys['firecrawl_key']
+    if not hasattr(st.session_state, 'gemini_key') or not st.session_state.gemini_key:
+        st.session_state.gemini_key = default_api_keys['gemini_key']
+    if not hasattr(st.session_state, 'cloudinary_name') or not st.session_state.cloudinary_name:
+        st.session_state.cloudinary_name = default_api_keys['cloudinary_name']
+    if not hasattr(st.session_state, 'cloudinary_key') or not st.session_state.cloudinary_key:
+        st.session_state.cloudinary_key = default_api_keys['cloudinary_key']
+    if not hasattr(st.session_state, 'cloudinary_secret') or not st.session_state.cloudinary_secret:
+        st.session_state.cloudinary_secret = default_api_keys['cloudinary_secret']
+    
     # 检查是否有保存的API密钥
     firecrawl_key = getattr(st.session_state, 'firecrawl_key', '')
     gemini_key = getattr(st.session_state, 'gemini_key', '')
@@ -298,10 +319,31 @@ def main():
     if api_keys_exist and not st.session_state.api_configured:
         st.session_state.api_configured = True
     
+    # 如果有默认密钥，自动标记为已配置
+    if not st.session_state.api_configured:
+        # 检查是否有默认值
+        has_defaults = all([
+            getattr(st.session_state, 'firecrawl_key', ''),
+            getattr(st.session_state, 'gemini_key', '')
+        ])
+        if has_defaults:
+            st.session_state.api_configured = True
+    
     # API配置界面
     with st.expander("🔑 API密钥配置", expanded=not st.session_state.api_configured):
         st.markdown("### 🔑 API密钥配置")
-        st.warning("⚠️ 您的API密钥仅保存在浏览器本地，不会上传到服务器")
+        
+        # 检查是否使用的是默认密钥
+        is_using_defaults = (
+            st.session_state.firecrawl_key == default_api_keys['firecrawl_key'] and
+            st.session_state.gemini_key == default_api_keys['gemini_key']
+        )
+        
+        if is_using_defaults:
+            st.success("✅ 已预配置默认API密钥，可以直接使用")
+            st.info("💡 您可以修改下面的API密钥，或保持默认设置")
+        else:
+            st.warning("⚠️ 您的API密钥仅保存在浏览器本地，不会上传到服务器")
         
         # 使用表单来确保状态正确保存
         with st.form("api_config_form"):
