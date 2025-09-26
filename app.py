@@ -123,7 +123,25 @@ def rewrite_with_gemini(markdown_text: str, api_key: str) -> str:
     
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
+        
+        # 尝试使用可用的模型
+        available_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+        model = None
+        
+        for model_name in available_models:
+            try:
+                model = genai.GenerativeModel(model_name)
+                # 测试模型是否可用
+                test_response = model.generate_content("测试")
+                if test_response.text:
+                    break
+            except:
+                continue
+        
+        if not model:
+            raise Exception("无法找到可用的Gemini模型")
+        
+        st.info(f"✅ 使用模型: {model.model_name}")
         
         prompt = f"""
 请将以下Markdown格式的文章内容进行改写，使其表达方式更简洁、流畅。
