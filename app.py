@@ -5,7 +5,41 @@ import cloudinary
 import cloudinary.uploader
 import google.generativeai as genai
 import os
+import asyncio
 from datetime import datetime
+from chrome_extractor import HybridExtractor
+
+
+def get_content_with_fallback(url: str, firecrawl_key: str, use_chrome_fallback: bool = True) -> str:
+    """
+    使用混合提取器获取内容，优先Firecrawl，失败后使用Chrome DevTools MCP
+    
+    Args:
+        url: 文章URL
+        firecrawl_key: Firecrawl API密钥
+        use_chrome_fallback: 是否在Firecrawl失败时使用Chrome DevTools MCP
+        
+    Returns:
+        提取的Markdown文本
+    """
+    try:
+        # 创建混合提取器
+        extractor = HybridExtractor(firecrawl_api_key=firecrawl_key)
+        
+        # 在Streamlit中运行异步代码
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            content = loop.run_until_complete(
+                extractor.extract_content(url, use_chrome_fallback)
+            )
+            return content
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        raise Exception(f"内容提取失败: {str(e)}")
 
 
 def get_content_from_firecrawl(url: str, api_key: str) -> str:
@@ -381,6 +415,40 @@ def main():
     with col2:
         process_button = st.button("🚀 开始处理", key="process_button", use_container_width=True)
     
+    # Chrome DevTools MCP选项
+    with st.expander("🔧 高级提取选项", expanded=False):
+        st.markdown("### 🌐 Chrome DevTools MCP设置")
+        st.info("💡 当Firecrawl API失败时，自动使用Chrome DevTools MCP进行提取")
+        
+        # 从session state获取设置，如果没有则为True
+        current_setting = getattr(st.session_state, 'use_chrome_fallback', True)
+        use_chrome_fallback = st.checkbox(
+            "🔄 启用Chrome DevTools MCP降级模式",
+            value=current_setting,
+            help="当Firecrawl API失败时，自动使用Chrome DevTools MCP作为备选方案"
+        )
+        
+        # 保存设置到session state
+        st.session_state.use_chrome_fallback = use_chrome_fallback
+        
+        # 检查Chrome DevTools MCP是否可用
+        chrome_status = st.empty()
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["npx", "chrome-devtools-mcp@latest", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                chrome_status.success("✅ Chrome DevTools MCP 已安装并可用")
+                chrome_status.info(f"版本: {result.stdout.strip()}")
+            else:
+                chrome_status.warning("⚠️ Chrome DevTools MCP 未正确安装")
+        except Exception:
+            chrome_status.error("❌ Chrome DevTools MCP 不可用，请运行: npm install -g chrome-devtools-mcp")
+    
     # 自定义改写Prompt输入
     with st.expander("✏️ 自定义改写指令（可选）", expanded=False):
         st.markdown("### 📝 自定义AI改写指令")
@@ -450,9 +518,23 @@ def main():
             with st.spinner("🔄 正在处理中，请稍候..."):
                 # 步骤1: 获取文章内容
                 st.markdown("### 📄 步骤1: 获取文章内容")
-                st.write("正在从Firecrawl获取文章内容...")
-                original_content = get_content_from_firecrawl(url.strip(), st.session_state.firecrawl_key)
-                st.success("✅ 文章内容获取成功")
+                
+                # 获取Chrome DevTools MCP设置
+                use_chrome_fallback = getattr(st.session_state, 'use_chrome_fallback', True)
+                
+                st.write("正在提取文章内容...")
+                if use_chrome_fallback:
+                    st.info("🔄 使用混合提取模式（Firecrawl + Chrome DevTools MCP）")
+                    original_content = get_content_with_fallback(
+                        url.strip(), 
+                        st.session_state.firecrawl_key, 
+                        use_chrome_fallback
+                    )
+                    st.success("✅ 文章内容获取成功")
+                else:
+                    st.info("🔥 使用Firecrawl API提取")
+                    original_content = get_content_from_firecrawl(url.strip(), st.session_state.firecrawl_key)
+                    st.success("✅ 文章内容获取成功")
                 
                 # 步骤2: 处理图片
                 st.markdown("### 🖼️ 步骤2: 处理图片链接")
